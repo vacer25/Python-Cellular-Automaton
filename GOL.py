@@ -55,6 +55,10 @@ screen = pygame.display.set_mode((sizeX, sizeY))
 font = pygame.font.SysFont("consolas", 20)
 smallFont = pygame.font.SysFont("consolas", 12)
 
+runningText = font.render("RUNNING", True, runningTextCol, bgCol)
+stepText = font.render("STEP", True, runningTextCol, bgCol)
+pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
+
 # Clamp number within range function
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
@@ -229,6 +233,7 @@ while not done:
 				paused = not paused
 				#print("Paused")
 			if event.key == pygame.K_RETURN:
+				paused = True
 				step = True
 			if event.key == pygame.K_g:
 				initBoardGliders()
@@ -264,17 +269,16 @@ while not done:
 	updateTimeText = font.render("Update time: " + str(updateTime) + "ms", True, textCol, bgCol)
 	screen.blit(updateTimeText, (sizeX - updateTimeText.get_width() - 5, 5))
 	
-	if not paused or step:
+	if not paused:
 		# Draw running text
-		runningText = font.render("RUNNING", True, runningTextCol, bgCol)
 		screen.blit(runningText, ((sizeX - runningText.get_width()) // 2, 5))
 		
-		#if step:
-		#	print("Stepped!")
-		
-	elif paused:
+	if step:
+		# Draw step text
+		screen.blit(stepText, ((sizeX - stepText.get_width()) // 2, 5))
+
+	if paused and not step:
 		# Draw paused text
-		pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
 		screen.blit(pausedText, ((sizeX - pausedText.get_width()) // 2, 5))
 	
 	# Draw current mode text
