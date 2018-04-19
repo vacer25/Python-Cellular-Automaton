@@ -16,4 +16,5 @@ Implementation of cellular automaton in python using pygame (mainly Conway's Gam
 	
 	<br>
 	<img src="Screenshots/GOL.gif" alt="GOL" style="width: 500px;"/>
-	(GIF is current as of commit 6b81a063a4c0a872e2560df86b2a6fd7e14d9cad)
+	<br>
+	( GIF is current as of commit 786e88806f9c088b913db4f24038795ef481ff22 )
