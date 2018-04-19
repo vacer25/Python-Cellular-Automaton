@@ -1,36 +1,42 @@
+# -------------------- IMPORTS --------------------
+
 import pygame
 import random
 from enum import Enum
 
-# Constants
+# -------------------- CONSTANTS --------------------
 
 #targetFrameRate = 60
 
 bgCol = (0, 0, 0)
+liveCellCol = (32, 200, 32)
+deadCellCol = (16, 16, 16)
+separatorCol = (255, 255, 255)
 textCol = (255, 255, 255)
 redTextCol = (255, 32, 32)
 yellowTextCol = (255, 255, 32)
 greenTextCol = (32, 255, 32)
 blueTextCol = (64, 64, 255)
-runningTextCol = (32, 255, 32)
-pausedTextCol = (255, 255, 32)
-liveCellCol = (32, 200, 32)
-deadCellCol = (16, 16, 16)
 boundingBoxCol = (200, 200, 32)
 mousePosCol = (200, 200, 200)
 
-topBarSizeY = 30
-bottomBarSizeY = 30
+topBarSizeY = 26
+leftBarSize = 8*25
+
+controlsSectionOffsetY = 74
+
+topTextPadding = 4
+leftTextPadding = 4
 
 numCellsX = 80
 numCellsY = 60
 sizeCellsX = 10
 sizeCellsY = 10
 
-sizeX = numCellsX*sizeCellsX
-sizeY = numCellsY*sizeCellsY + topBarSizeY + bottomBarSizeY
+sizeX = numCellsX*sizeCellsX + leftBarSize
+sizeY = numCellsY*sizeCellsY + topBarSizeY
 
-# Variables
+# -------------------- VARIABLES --------------------
 
 class UpdateMode(Enum):
      SIMPLE = 1
@@ -60,7 +66,8 @@ step = False
 paused = True
 done = False
 
-# Init
+# -------------------- INITIALIZATION / OBJECT CREATION --------------------
+
 pygame.init()
 pygame.display.set_caption('Game of Life')
 clock = pygame.time.Clock()
@@ -68,17 +75,36 @@ screen = pygame.display.set_mode((sizeX, sizeY))
 
 font = pygame.font.SysFont("consolas", 20)
 smallFont = pygame.font.SysFont("consolas", 12)
-updateTimeTextOffsetX = smallFont.size("2")[0]*10
-updateFPSTextOffsetX = smallFont.size("2")[0]*3
+fontHeight = font.get_height()
+smallFontHeight = smallFont.get_height()
 
-runningText = font.render("RUNNING", True, runningTextCol, bgCol)
-stepText = font.render("STEP", True, runningTextCol, bgCol)
-pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
-updateTimeStringText = smallFont.render("Update time:     ms/    fps", True, textCol, bgCol)
-memAccessStringText = smallFont.render("# of memory access:", True, textCol, bgCol)
-keyControlsLine1Text = smallFont.render("Controls: [Space/MMB] = Run/Pause, [Enter] = Step, [M] = Change mode, [S] = Toggle cell separation, [ESC] = Quit", True, textCol, bgCol)
-keyControlsLine2Text = smallFont.render("          [C] = Clear all, [P] = Toggle display of prev. iteration, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
+statusHeadingText = font.render("Status", True, textCol, bgCol)
+controlsHeadingText = font.render("Controls", True, textCol, bgCol)
+runningText = font.render("RUNNING", True, greenTextCol, bgCol)
+stepText = font.render("STEP", True, greenTextCol, bgCol)
+pausedText = font.render("PAUSED", True, yellowTextCol, bgCol)
+updateTimeLabelText = smallFont.render("Update time:", True, textCol, bgCol)
+updateFPSLabelText =  smallFont.render("Update FPS:", True, textCol, bgCol)
+updateTimeUnitText = smallFont.render("ms", True, textCol, bgCol)
+updateFPSUnitText =  smallFont.render("fps", True, textCol, bgCol)
+memAccessStringText =  smallFont.render("# of mem. accesses:", True, textCol, bgCol)
 
+controlsStrings = [ "[Enter] = Step",
+					"[Space] = Run/Pause", 
+					"[MMB]   = Run/Pause",
+					"[LMB]   = Set cells",
+					"[RMB]   = Clear cells",
+					"[M]     = Change mode",
+					"[S]     = Toggle separation",
+					"[P]     = Toggle prev state",
+					"[C]     = Clear all",
+					"[G]     = Glider pattern",
+					"[R]     = Random pattern",
+					"[ESC]   = Quit"]
+
+controlsTexts = [smallFont.render(currentControlsString, True, textCol, bgCol) for currentControlsString in controlsStrings]
+
+# -------------------- FUNCTIONS --------------------
 
 # Clamp number within range function
 def clamp(n, minn, maxn):
@@ -138,14 +164,15 @@ def drawCell(col, row):
 	if cells[currentBuffer][row][col]: color = liveCellCol
 	else: color = deadCellCol
 	if separateCells:
-		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX + 1, topBarSizeY + row*sizeCellsY + 1, sizeCellsX-2, sizeCellsY-2))
+		pygame.draw.rect(screen, color, pygame.Rect(leftBarSize + col*sizeCellsX + 1, topBarSizeY + row*sizeCellsY + 1, sizeCellsX-2, sizeCellsY-2))
 	else:
-		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY))
+		pygame.draw.rect(screen, color, pygame.Rect(leftBarSize + col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY))
 
 	if displayPrevIteration and cells[otherBuffer][row][col]: 
 		color = yellowTextCol
-		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX + 4, topBarSizeY + row*sizeCellsY + 4, sizeCellsX-8, sizeCellsY-8))
+		pygame.draw.rect(screen, color, pygame.Rect(leftBarSize + col*sizeCellsX + 4, topBarSizeY + row*sizeCellsY + 4, sizeCellsX-8, sizeCellsY-8))
 	
+
 # Process drawing function
 def processCell(col, row, idle):
 	
@@ -252,7 +279,7 @@ def updateBoard():
 		#print("Bounding box: (%d, %d, %d, %d)" % (boundingBoxMinX, boundingBoxMinY, boundingBoxMaxX, boundingBoxMaxY))
 		
 		# Draw the bounding box
-		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
+		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(leftBarSize + boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
 	
 
 def processMouseInput():
@@ -260,7 +287,7 @@ def processMouseInput():
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
 			
-				cellBorderRect = pygame.Rect(col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY)
+				cellBorderRect = pygame.Rect(leftBarSize + col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY)
 				if cellBorderRect.collidepoint(mousePos):
 					pygame.draw.rect(screen, mousePosCol, cellBorderRect, 1)
 					
@@ -272,14 +299,21 @@ def processMouseInput():
 						for i in range (0, 2):
 							cells[i][row][col] = 0
 
+							
+# -------------------- INITIALIZE BOARD --------------------
+							
 # Initialize the board with 2 gliders facing each other
 initBoardGliders()
 
 # Initialize the board randomly
 #initBoardRandom()
 
-# Main loop
+# -------------------- MAIN LOOP --------------------
+
 while not done:
+
+	# -------------------- EVENT HANDLING --------------------
+
 	for event in pygame.event.get():
 		# Check to exit
 		if event.type == pygame.QUIT:
@@ -331,6 +365,8 @@ while not done:
 		if event.type == pygame.MOUSEMOTION:
 			mousePos = event.pos
 	
+	# -------------------- UPDATE FRAME --------------------
+	
 	# Clear the screen
 	screen.fill(bgCol)
 	
@@ -338,17 +374,51 @@ while not done:
 		# Swap buffers
 		otherBuffer = currentBuffer
 		currentBuffer = 1 - currentBuffer
+		
+	# -------------------- SIMULATION LOGIC / MOUSE INPUT --------------------
 	
 	# Start timing
-	starUpdateTime = pygame.time.get_ticks()
+	startUpdateTime = pygame.time.get_ticks()
 	
 	# Update the board using the method based on the current mode
 	updateBoard()
 	
 	# Stop Timing
-	updateTime = pygame.time.get_ticks() - starUpdateTime
+	updateTime = pygame.time.get_ticks() - startUpdateTime
 	
+	# Draw the mouse position and set/clear cells with mouse
 	processMouseInput()
+	
+	# -------------------- MODE & RUN STATUS INDICATORS --------------------
+	
+	# Draw current mode text
+	if currentMode == UpdateMode.SIMPLE: currentModeString = "Simple"
+	elif currentMode == UpdateMode.BOUNDING: currentModeString = "Bounding Box"
+	elif currentMode == UpdateMode.ACTIVE: currentModeString = "Active Cells"
+	currentModeText = font.render("Mode: " + currentModeString, True, textCol, bgCol)
+	screen.blit(currentModeText, (leftBarSize + leftTextPadding, topTextPadding))
+	
+	if not paused:
+		# Draw running text
+		screen.blit(runningText, ((sizeX + leftBarSize - runningText.get_width()) // 2, topTextPadding))
+		
+	if step:
+		# Draw step text
+		screen.blit(stepText, ((sizeX + leftBarSize - stepText.get_width()) // 2, topTextPadding))
+
+	if paused and not step:
+		# Draw paused text
+		screen.blit(pausedText, ((sizeX + leftBarSize - pausedText.get_width()) // 2, topTextPadding))
+		
+	# -------------------- LEFT BAR SEPARATOR --------------------
+	
+	# Draw left bar separator
+	pygame.draw.line(screen, separatorCol, (leftBarSize-1, 0), (leftBarSize-1, sizeY), 1)
+	
+	# -------------------- STATUS INFO TEXTS --------------------
+	
+	# Draw status heading text
+	screen.blit(statusHeadingText, (leftTextPadding, topTextPadding))
 	
 	# Draw current frame time text
 	timeTextCol = redTextCol
@@ -357,43 +427,36 @@ while not done:
 	if updateFPS >= 20:	timeTextCol = greenTextCol
 	updateTimeValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
 	updateFPSValueText = smallFont.render(str(updateFPS), True, timeTextCol, bgCol)
-	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 4))
-	screen.blit(updateTimeValueText, (sizeX - updateTimeValueText.get_width() - updateTimeTextOffsetX - 5, 4))
-	screen.blit(updateFPSValueText, (sizeX - updateFPSValueText.get_width() - updateFPSTextOffsetX - 5, 4))
+	screen.blit(updateTimeLabelText, (leftTextPadding, topBarSizeY + topTextPadding))
+	screen.blit(updateFPSLabelText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	screen.blit(updateTimeUnitText, (leftBarSize - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding))
+	screen.blit(updateFPSUnitText, (leftBarSize - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	screen.blit(updateTimeValueText, (leftBarSize - updateTimeValueText.get_width() - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding))
+	screen.blit(updateFPSValueText, (leftBarSize - updateFPSValueText.get_width() - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
 	
 	# Draw current number of memory accesses text
 	memAccessValueText = smallFont.render(str(numberOfMemoryAccesses), True, blueTextCol, bgCol)
-	screen.blit(memAccessStringText, (sizeX - updateTimeStringText.get_width() - 5, 17))
-	screen.blit(memAccessValueText, (sizeX - memAccessValueText.get_width() - 5, 17))
+	screen.blit(memAccessStringText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
+	screen.blit(memAccessValueText, (leftBarSize - memAccessValueText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
 	
-	if not paused:
-		# Draw running text
-		screen.blit(runningText, ((sizeX - runningText.get_width()) // 2, 5))
-		
-	if step:
-		# Draw step text
-		screen.blit(stepText, ((sizeX - stepText.get_width()) // 2, 5))
-
-	if paused and not step:
-		# Draw paused text
-		screen.blit(pausedText, ((sizeX - pausedText.get_width()) // 2, 5))
+	# -------------------- CONTROLS TEXTS --------------------
 	
-	# Draw current mode text
-	if currentMode == UpdateMode.SIMPLE: currentModeString = "Simple"
-	elif currentMode == UpdateMode.BOUNDING: currentModeString = "Bounding Box"
-	elif currentMode == UpdateMode.ACTIVE: currentModeString = "Active Cells"
-	currentModeText = font.render("Mode: " + currentModeString, True, textCol, bgCol)
-	screen.blit(currentModeText, (5, 5))
+	# Draw controls texts separator
+	pygame.draw.line(screen, separatorCol, (0, controlsSectionOffsetY), (leftBarSize - 1, controlsSectionOffsetY), 1)	
+	
+	# Draw controls heading text
+	screen.blit(controlsHeadingText, (leftTextPadding, controlsSectionOffsetY + topTextPadding))
 	
 	# Draw bottom key controls text
-	screen.blit(keyControlsLine1Text, (5, sizeY - bottomBarSizeY + 4))
-	screen.blit(keyControlsLine2Text, (5, sizeY - bottomBarSizeY + 17))
+	for	curerntControlTextIndex in range (0, len(controlsTexts)):
+		screen.blit(controlsTexts[curerntControlTextIndex], (leftTextPadding, controlsSectionOffsetY + topBarSizeY + topTextPadding + curerntControlTextIndex*smallFontHeight))
 	
-	# Update the screen
-	pygame.display.flip()
-	# Don't pause, update screen as fast as possible
-	#clock.tick(targetFrameRate)
-
-	# Reset variables
-	step = False
-	numberOfMemoryAccesses = 0
+	# -------------------- UPDATE SCREEN --------------------
+	
+	pygame.display.flip()			# Update the screen
+	#clock.tick(targetFrameRate)	# Don't pause, update screen as fast as possible
+	
+	# -------------------- RESET VARIABLES --------------------
+	
+	step = False					# Step only once
+	numberOfMemoryAccesses = 0		# Reset memory access to 0
