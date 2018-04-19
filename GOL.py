@@ -19,7 +19,7 @@ deadCellCol = (16, 16, 16)
 boundingBoxCol = (200, 200, 32)
 
 topBarSizeY = 30
-bottomBarSizeY = 16
+bottomBarSizeY = 30
 
 numCellsX = 80
 numCellsY = 60
@@ -49,6 +49,7 @@ boundingBoxMaxX = numCellsX - 1
 boundingBoxMinY = 0
 boundingBoxMaxY = numCellsY - 1
 
+separateCells = True
 step = False
 paused = True
 done = False
@@ -69,6 +70,8 @@ stepText = font.render("STEP", True, runningTextCol, bgCol)
 pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
 updateTimeStringText = smallFont.render("Update time:     ms/    fps", True, textCol, bgCol)
 memAccessStringText = smallFont.render("# of memory access:", True, textCol, bgCol)
+keyControlsLine1Text = smallFont.render("Controls: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [S] = Toggle cell separation, [ESC] = Quit", True, textCol, bgCol)
+keyControlsLine2Text = smallFont.render("          [G] = Set glider pattern, [R] = Set random pattern", True, textCol, bgCol)
 
 
 # Clamp number within range function
@@ -128,7 +131,10 @@ def drawCell(col, row):
 	
 	if cells[currentBuffer][row][col]: color = liveCellCol
 	else: color = deadCellCol
-	pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX + 1, topBarSizeY + row*sizeCellsY + 1, sizeCellsX-2, sizeCellsY-2))
+	if separateCells:
+		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX + 1, topBarSizeY + row*sizeCellsY + 1, sizeCellsX-2, sizeCellsY-2))
+	else:
+		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY))
 
 	
 # Process drawing function
@@ -252,6 +258,8 @@ while not done:
 			done = True
 		# Check to switch mode
 		if event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_ESCAPE:
+				done = True
 			if event.key == pygame.K_SPACE:
 				paused = not paused
 				#print("Paused")
@@ -262,6 +270,8 @@ while not done:
 				initBoardGliders()
 			if event.key == pygame.K_r:
 				initBoardRandom()
+			if event.key == pygame.K_s:
+				separateCells = not separateCells
 			if event.key == pygame.K_m:
 				if currentMode == UpdateMode.SIMPLE: 
 					currentMode = UpdateMode.BOUNDING
@@ -292,7 +302,7 @@ while not done:
 	timeTextCol = redTextCol
 	updateFPS = (1000 // updateTime)
 	if updateFPS >= 10:	timeTextCol = yellowTextCol
-	elif updateFPS >= 20:	timeTextCol = greenTextCol
+	if updateFPS >= 20:	timeTextCol = greenTextCol
 	updateTimeValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
 	updateFPSValueText = smallFont.render(str(updateFPS), True, timeTextCol, bgCol)
 	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 4))
@@ -324,8 +334,8 @@ while not done:
 	screen.blit(currentModeText, (5, 5))
 	
 	# Draw bottom key controls text
-	keyControlsText = smallFont.render("Controls: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
-	screen.blit(keyControlsText, (5, sizeY - bottomBarSizeY + 2))
+	screen.blit(keyControlsLine1Text, (5, sizeY - bottomBarSizeY + 4))
+	screen.blit(keyControlsLine2Text, (5, sizeY - bottomBarSizeY + 17))
 	
 	# Update the screen
 	pygame.display.flip()
