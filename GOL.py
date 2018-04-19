@@ -54,10 +54,12 @@ screen = pygame.display.set_mode((sizeX, sizeY))
 
 font = pygame.font.SysFont("consolas", 20)
 smallFont = pygame.font.SysFont("consolas", 12)
+uptadeTimeTextOfsetX = font.size("2")[0]*2
 
 runningText = font.render("RUNNING", True, runningTextCol, bgCol)
 stepText = font.render("STEP", True, runningTextCol, bgCol)
 pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
+updateTimeStringText = font.render("Update time:     ms", True, textCol, bgCol)
 
 # Clamp number within range function
 def clamp(n, minn, maxn):
@@ -220,7 +222,7 @@ initBoardGliders()
 
 # Initialize the board randomly
 #initBoardRandom()
-	
+
 # Main loop
 while not done:
 	for event in pygame.event.get():
@@ -266,8 +268,9 @@ while not done:
 	updateTime = pygame.time.get_ticks() - starUpdateTime
 	
 	# Draw current frame time text
-	updateTimeText = font.render("Update time: " + str(updateTime) + "ms", True, textCol, bgCol)
-	screen.blit(updateTimeText, (sizeX - updateTimeText.get_width() - 5, 5))
+	updateTimeValueText = font.render(str(updateTime), True, textCol, bgCol)
+	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 5))
+	screen.blit(updateTimeValueText, (sizeX - updateTimeValueText.get_width() - uptadeTimeTextOfsetX - 5, 5))
 	
 	if not paused:
 		# Draw running text
@@ -289,7 +292,7 @@ while not done:
 	screen.blit(currentModeText, (5, 5))
 	
 	# Draw bottom key controls text
-	keyControlsText = smallFont.render("Keys: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
+	keyControlsText = smallFont.render("Controls: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
 	screen.blit(keyControlsText, (5, sizeY - bottomBarSizeY + 5))
 	
 	# Update the screen
