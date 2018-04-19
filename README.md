@@ -13,8 +13,8 @@ Implementation of cellular automaton in python using pygame (mainly Conway's Gam
 		- `M` = Change mode
 		- `G` = Glider pattern
 		- `R` = Random pattern
+
 	
+	GIF is current as of commit [786e888](https://github.com/vacer25/Python-Cellular-Automaton/commit/786e88806f9c088b913db4f24038795ef481ff22/)
 	<br>
 	<img src="Screenshots/GOL.gif" alt="GOL" style="width: 500px;"/>
-	<br>
-	GIF is current as of commit [786e888](https://github.com/vacer25/Python-Cellular-Automaton/commit/786e88806f9c088b913db4f24038795ef481ff22)
