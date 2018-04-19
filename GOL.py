@@ -4,14 +4,14 @@ from enum import Enum
 
 # Constants
 
-frameRate = 60
+#targetFrameRate = 60
 
 bgCol = (0, 0, 0)
 textCol = (255, 255, 255)
 redTextCol = (255, 32, 32)
 yellowTextCol = (255, 255, 32)
 greenTextCol = (32, 255, 32)
-blueTextCol = (32, 32, 255)
+blueTextCol = (64, 64, 255)
 runningTextCol = (32, 255, 32)
 pausedTextCol = (255, 255, 32)
 liveCellCol = (32, 200, 32)
@@ -55,18 +55,20 @@ done = False
 
 # Init
 pygame.init()
+pygame.display.set_caption('Game of Life')
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((sizeX, sizeY))
 
 font = pygame.font.SysFont("consolas", 20)
 smallFont = pygame.font.SysFont("consolas", 12)
-updateTimeTextOffsetX = smallFont.size("2")[0]*2
+updateTimeTextOffsetX = smallFont.size("2")[0]*10
+updateFPSTextOffsetX = smallFont.size("2")[0]*3
 
 runningText = font.render("RUNNING", True, runningTextCol, bgCol)
 stepText = font.render("STEP", True, runningTextCol, bgCol)
 pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
-updateTimeStringText = smallFont.render("Update time:     ms", True, textCol, bgCol)
-memAccessStringText = smallFont.render("Mem. access:", True, textCol, bgCol)
+updateTimeStringText = smallFont.render("Update time:     ms/    fps", True, textCol, bgCol)
+memAccessStringText = smallFont.render("# of memory access:", True, textCol, bgCol)
 
 
 # Clamp number within range function
@@ -195,7 +197,8 @@ def calculateBoundingBox():
 	
 	#print("Calculated bounding box: (%d, %d, %d, %d)" % (boundingBoxMinX, boundingBoxMinY, boundingBoxMaxX, boundingBoxMaxY))
 	
-	
+
+# Update board function
 def updateBoard():
 
 	global numberOfMemoryAccesses
@@ -287,13 +290,14 @@ while not done:
 	
 	# Draw current frame time text
 	timeTextCol = redTextCol
-	if updateTime < 1000 and updateTime >= 10:
-		timeTextCol = yellowTextCol
-	elif updateTime < 10:
-		timeTextCol = greenTextCol
+	updateFPS = (1000 // updateTime)
+	if updateFPS >= 10:	timeTextCol = yellowTextCol
+	elif updateFPS >= 20:	timeTextCol = greenTextCol
 	updateTimeValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
+	updateFPSValueText = smallFont.render(str(updateFPS), True, timeTextCol, bgCol)
 	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 4))
 	screen.blit(updateTimeValueText, (sizeX - updateTimeValueText.get_width() - updateTimeTextOffsetX - 5, 4))
+	screen.blit(updateFPSValueText, (sizeX - updateFPSValueText.get_width() - updateFPSTextOffsetX - 5, 4))
 	
 	# Draw current number of memory accesses text
 	memAccessValueText = smallFont.render(str(numberOfMemoryAccesses), True, blueTextCol, bgCol)
@@ -325,7 +329,8 @@ while not done:
 	
 	# Update the screen
 	pygame.display.flip()
-	clock.tick(frameRate)
+	# Don't pause, update screen as fast as possible
+	#clock.tick(targetFrameRate)
 
 	# Reset variables
 	step = False
