@@ -17,6 +17,7 @@ pausedTextCol = (255, 255, 32)
 liveCellCol = (32, 200, 32)
 deadCellCol = (16, 16, 16)
 boundingBoxCol = (200, 200, 32)
+mousePosCol = (200, 200, 200)
 
 topBarSizeY = 30
 bottomBarSizeY = 30
@@ -49,6 +50,11 @@ boundingBoxMaxX = numCellsX - 1
 boundingBoxMinY = 0
 boundingBoxMaxY = numCellsY - 1
 
+mousePos = (-1, -1)
+mouseLeftClicked = False
+mouseRightClicked = False
+
+displayPrevIteration = True
 separateCells = True
 step = False
 paused = True
@@ -70,8 +76,8 @@ stepText = font.render("STEP", True, runningTextCol, bgCol)
 pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
 updateTimeStringText = smallFont.render("Update time:     ms/    fps", True, textCol, bgCol)
 memAccessStringText = smallFont.render("# of memory access:", True, textCol, bgCol)
-keyControlsLine1Text = smallFont.render("Controls: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [S] = Toggle cell separation, [ESC] = Quit", True, textCol, bgCol)
-keyControlsLine2Text = smallFont.render("          [G] = Set glider pattern, [R] = Set random pattern", True, textCol, bgCol)
+keyControlsLine1Text = smallFont.render("Controls: [Space/MMB] = Run/Pause, [Enter] = Step, [M] = Change mode, [S] = Toggle cell separation, [ESC] = Quit", True, textCol, bgCol)
+keyControlsLine2Text = smallFont.render("          [C] = Clear all, [P] = Toggle display of prev. iteration, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
 
 
 # Clamp number within range function
@@ -128,7 +134,7 @@ def clearCells():
 def drawCell(col, row):
 	
 	#print("Drawing cell at col: %d, row: %d, i: %d" % (col, row, i))
-	
+
 	if cells[currentBuffer][row][col]: color = liveCellCol
 	else: color = deadCellCol
 	if separateCells:
@@ -136,6 +142,9 @@ def drawCell(col, row):
 	else:
 		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY))
 
+	if displayPrevIteration and cells[otherBuffer][row][col]: 
+		color = yellowTextCol
+		pygame.draw.rect(screen, color, pygame.Rect(col*sizeCellsX + 4, topBarSizeY + row*sizeCellsY + 4, sizeCellsX-8, sizeCellsY-8))
 	
 # Process drawing function
 def processCell(col, row, idle):
@@ -210,7 +219,7 @@ def updateBoard():
 	global numberOfMemoryAccesses
 
 	if currentMode == UpdateMode.SIMPLE:
-		# Loop over all cells, updating (if not paused or if stepping) and drawing each one
+		# Loop over all cells, updating (if not paused or if stepping)
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
 				if not paused or step:
@@ -219,12 +228,13 @@ def updateBoard():
 					processCell(col, row, True)
 				numberOfMemoryAccesses += 1
 		
+		# Loop over all cells, drawing each one
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
 				drawCell(col, row)
 				
 	elif currentMode == UpdateMode.BOUNDING:
-		# Loop over all cells within bounding box, updating (if not paused or if stepping) and drawing each one
+		# Loop over all cells within bounding box, updating (if not paused or if stepping)
 		for row in range(boundingBoxMaxY, boundingBoxMinY-1, -1):
 			for col in range(boundingBoxMaxX, boundingBoxMinX-1, -1):
 				if not paused or step:
@@ -232,7 +242,8 @@ def updateBoard():
 				else:
 					processCell(col, row, True)
 				numberOfMemoryAccesses += 1
-					
+		
+		# Loop over all cells, drawing each one
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
 				drawCell(col, row)
@@ -242,7 +253,24 @@ def updateBoard():
 		
 		# Draw the bounding box
 		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
-		
+	
+
+def processMouseInput():
+	# Loop over all cells, drawing each one
+		for row in range(numCellsY-1, -1, -1):
+			for col in range(numCellsX-1, -1, -1):
+			
+				cellBorderRect = pygame.Rect(col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY)
+				if cellBorderRect.collidepoint(mousePos):
+					pygame.draw.rect(screen, mousePosCol, cellBorderRect, 1)
+					
+					if mouseLeftClicked:
+						for i in range (0, 2):
+							cells[i][row][col] = 1
+							
+					if mouseRightClicked:
+						for i in range (0, 2):
+							cells[i][row][col] = 0
 
 # Initialize the board with 2 gliders facing each other
 initBoardGliders()
@@ -256,22 +284,25 @@ while not done:
 		# Check to exit
 		if event.type == pygame.QUIT:
 			done = True
-		# Check to switch mode
+		# Check keyboard input
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				done = True
 			if event.key == pygame.K_SPACE:
 				paused = not paused
-				#print("Paused")
 			if event.key == pygame.K_RETURN:
 				paused = True
 				step = True
+			if event.key == pygame.K_c:
+				clearCells()
 			if event.key == pygame.K_g:
 				initBoardGliders()
 			if event.key == pygame.K_r:
 				initBoardRandom()
 			if event.key == pygame.K_s:
 				separateCells = not separateCells
+			if event.key == pygame.K_p:
+				displayPrevIteration = not displayPrevIteration
 			if event.key == pygame.K_m:
 				if currentMode == UpdateMode.SIMPLE: 
 					currentMode = UpdateMode.BOUNDING
@@ -280,6 +311,25 @@ while not done:
 					currentMode = UpdateMode.SIMPLE
 				# Active Cell mode is not implemented yet...
 				#elif currentMode == UpdateMode.ACTIVE: currentMode = UpdateMode.SIMPLE
+		# Check mouse down input
+		if event.type == pygame.MOUSEBUTTONDOWN:
+			if event.button == 1: # Left button down
+				paused = True
+				mouseLeftClicked = True
+			if event.button == 2: # Mouse wheel button down
+				paused = not paused
+			elif event.button == 3: # Right button down
+				paused = True
+				mouseRightClicked = True
+		# Check for mouse up input
+		if event.type == pygame.MOUSEBUTTONUP:
+			if event.button == 1: # Left button up
+				mouseLeftClicked = False
+			elif event.button == 3: # Right button up
+				mouseRightClicked = False    
+		# Get the mouse position	
+		if event.type == pygame.MOUSEMOTION:
+			mousePos = event.pos
 	
 	# Clear the screen
 	screen.fill(bgCol)
@@ -297,6 +347,8 @@ while not done:
 	
 	# Stop Timing
 	updateTime = pygame.time.get_ticks() - starUpdateTime
+	
+	processMouseInput()
 	
 	# Draw current frame time text
 	timeTextCol = redTextCol
