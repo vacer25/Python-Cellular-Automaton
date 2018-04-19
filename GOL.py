@@ -2,17 +2,16 @@ import pygame
 import random
 from enum import Enum
 
-class UpdateMode(Enum):
-     SIMPLE = 1
-     BOUNDING = 2
-     ACTIVE = 3
-
 # Constants
 
 frameRate = 60
 
 bgCol = (0, 0, 0)
 textCol = (255, 255, 255)
+redTextCol = (255, 32, 32)
+yellowTextCol = (255, 255, 32)
+greenTextCol = (32, 255, 32)
+blueTextCol = (32, 32, 255)
 runningTextCol = (32, 255, 32)
 pausedTextCol = (255, 255, 32)
 liveCellCol = (32, 200, 32)
@@ -20,7 +19,7 @@ deadCellCol = (16, 16, 16)
 boundingBoxCol = (200, 200, 32)
 
 topBarSizeY = 30
-bottomBarSizeY = 20
+bottomBarSizeY = 16
 
 numCellsX = 80
 numCellsY = 60
@@ -32,7 +31,14 @@ sizeY = numCellsY*sizeCellsY + topBarSizeY + bottomBarSizeY
 
 # Variables
 
+class UpdateMode(Enum):
+     SIMPLE = 1
+     BOUNDING = 2
+     ACTIVE = 3
+
 cells = [[[0 for col in range(numCellsX)]for row in range(numCellsY)] for x in range(2)]
+
+numberOfMemoryAccesses = 0
 
 currentBuffer = 0
 otherBuffer = 1 - currentBuffer
@@ -54,12 +60,14 @@ screen = pygame.display.set_mode((sizeX, sizeY))
 
 font = pygame.font.SysFont("consolas", 20)
 smallFont = pygame.font.SysFont("consolas", 12)
-uptadeTimeTextOfsetX = font.size("2")[0]*2
+updateTimeTextOffsetX = smallFont.size("2")[0]*2
 
 runningText = font.render("RUNNING", True, runningTextCol, bgCol)
 stepText = font.render("STEP", True, runningTextCol, bgCol)
 pausedText = font.render("PAUSED", True, pausedTextCol, bgCol)
-updateTimeStringText = font.render("Update time:     ms", True, textCol, bgCol)
+updateTimeStringText = smallFont.render("Update time:     ms", True, textCol, bgCol)
+memAccessStringText = smallFont.render("Mem. access:", True, textCol, bgCol)
+
 
 # Clamp number within range function
 def clamp(n, minn, maxn):
@@ -90,6 +98,7 @@ def initBoardGliders():
 	createGlider(1, 1, 0)
 	createGlider((40 - 4), 2, 1)
 	currentBuffer = 0
+
 	
 # Initialize board (randomly) function
 def initBoardRandom():
@@ -109,6 +118,7 @@ def clearCells():
 			for i in range (0, 2):
 				cells[i][row][col] = 0
 
+
 # Cell drawing function
 def drawCell(col, row):
 	
@@ -122,21 +132,20 @@ def drawCell(col, row):
 # Process drawing function
 def processCell(col, row, idle):
 	
+	global numberOfMemoryAccesses
+	
 	minX = clamp((col-1), 0, (numCellsX-1))
 	maxX = clamp((col+1), 0, (numCellsX-1))
 	minY = clamp((row-1), 0, (numCellsY-1))
 	maxY = clamp((row+1), 0, (numCellsY-1))
 	
 	neighborCount = 0
-	 
-	#print("CurrX: %d, CurrY: %d" % (col, row))
-	#print("MinX: %d, MaxX: %d" % (minX, maxX))
-	#print("MinY: %d, MaxY: %d" % (minY, maxY))
 	
 	for currY in range(minY, maxY+1):
 		for currX in range(minX, maxX+1):
 			#print("Reading cell at col: %d, row: %d, buff: %d" % (col, row, otherBuffer))
 			neighborCount += cells[otherBuffer][currY][currX]
+			numberOfMemoryAccesses += 1
 	
 	neighborCount -= cells[otherBuffer][row][col]
 	thisCellIsAlive = cells[otherBuffer][row][col]
@@ -163,6 +172,7 @@ def calculateBoundingBox():
 	global boundingBoxMaxX
 	global boundingBoxMinY
 	global boundingBoxMaxY
+	global numberOfMemoryAccesses
 
 	currMinX = numCellsX - 1
 	currMaxX = 0
@@ -176,6 +186,7 @@ def calculateBoundingBox():
 				currMaxX = max(currMaxX, col)
 				currMinY = min(currMinY, row)
 				currMaxY = max(currMaxY, row)
+			numberOfMemoryAccesses += 1
 	
 	boundingBoxMinX = clamp(currMinX - 2, 0, (numCellsX-1))
 	boundingBoxMaxX = clamp(currMaxX + 2, 0, (numCellsX-1))
@@ -187,6 +198,8 @@ def calculateBoundingBox():
 	
 def updateBoard():
 
+	global numberOfMemoryAccesses
+
 	if currentMode == UpdateMode.SIMPLE:
 		# Loop over all cells, updating (if not paused or if stepping) and drawing each one
 		for row in range(numCellsY-1, -1, -1):
@@ -195,6 +208,10 @@ def updateBoard():
 					processCell(col, row, False)
 				else:
 					processCell(col, row, True)
+				numberOfMemoryAccesses += 1
+		
+		for row in range(numCellsY-1, -1, -1):
+			for col in range(numCellsX-1, -1, -1):
 				drawCell(col, row)
 				
 	elif currentMode == UpdateMode.BOUNDING:
@@ -205,6 +222,7 @@ def updateBoard():
 					processCell(col, row, False)
 				else:
 					processCell(col, row, True)
+				numberOfMemoryAccesses += 1
 					
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
@@ -268,9 +286,19 @@ while not done:
 	updateTime = pygame.time.get_ticks() - starUpdateTime
 	
 	# Draw current frame time text
-	updateTimeValueText = font.render(str(updateTime), True, textCol, bgCol)
-	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 5))
-	screen.blit(updateTimeValueText, (sizeX - updateTimeValueText.get_width() - uptadeTimeTextOfsetX - 5, 5))
+	timeTextCol = redTextCol
+	if updateTime < 1000 and updateTime >= 10:
+		timeTextCol = yellowTextCol
+	elif updateTime < 10:
+		timeTextCol = greenTextCol
+	updateTimeValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
+	screen.blit(updateTimeStringText, (sizeX - updateTimeStringText.get_width() - 5, 4))
+	screen.blit(updateTimeValueText, (sizeX - updateTimeValueText.get_width() - updateTimeTextOffsetX - 5, 4))
+	
+	# Draw current number of memory accesses text
+	memAccessValueText = smallFont.render(str(numberOfMemoryAccesses), True, blueTextCol, bgCol)
+	screen.blit(memAccessStringText, (sizeX - updateTimeStringText.get_width() - 5, 17))
+	screen.blit(memAccessValueText, (sizeX - memAccessValueText.get_width() - 5, 17))
 	
 	if not paused:
 		# Draw running text
@@ -293,11 +321,12 @@ while not done:
 	
 	# Draw bottom key controls text
 	keyControlsText = smallFont.render("Controls: [Space] = Start/Pause, [Enter] = Step, [M] = Change mode, [G] = Glider pattern, [R] = Random pattern", True, textCol, bgCol)
-	screen.blit(keyControlsText, (5, sizeY - bottomBarSizeY + 5))
+	screen.blit(keyControlsText, (5, sizeY - bottomBarSizeY + 2))
 	
 	# Update the screen
 	pygame.display.flip()
 	clock.tick(frameRate)
 
-	# Clear flags
+	# Reset variables
 	step = False
+	numberOfMemoryAccesses = 0
