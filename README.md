@@ -15,6 +15,6 @@ Implementation of cellular automaton in python using pygame (mainly Conway's Gam
 		- `R` = Random pattern
 
 	
-	GIF is current as of commit [a96aa46](https://github.com/vacer25/Python-Cellular-Automaton/commit/a96aa469970c304a433bc85ae8e92ec909bb53a1)
+	GIF is current as of commit [dc9ffef](https://github.com/vacer25/Python-Cellular-Automaton/commit/dc9ffef7029ecb17e3b6dfedc4ac441552ed8df3)
 	<br>
-	<img src="Screenshots/GOL.gif" alt="GOL" style="width: 500px;"/>
+	<img src="Screenshots/GOL.gif" alt="GOL"/>
