@@ -4,26 +4,28 @@ import pygame
 import random
 from enum import Enum
 
+pygame.init()
+
 # -------------------- CONSTANTS --------------------
 
 #targetFrameRate = 60
 
-bgCol = (0, 0, 0)
-liveCellCol = (32, 200, 32)
-deadCellCol = (16, 16, 16)
-separatorCol = (255, 255, 255)
-textCol = (255, 255, 255)
-redTextCol = (255, 32, 32)
-yellowTextCol = (255, 255, 32)
-greenTextCol = (32, 255, 32)
-blueTextCol = (64, 64, 255)
-boundingBoxCol = (200, 200, 32)
-mousePosCol = (200, 200, 200)
+bgCol = pygame.Color(0, 0, 0)
+liveCellCol = pygame.Color(32, 200, 32)
+deadCellCol = pygame.Color(16, 16, 16)
+separatorCol = pygame.Color(255, 255, 255)
+textCol = pygame.Color(255, 255, 255)
+redTextCol = pygame.Color(255, 32, 32)
+yellowTextCol = pygame.Color(255, 255, 32)
+greenTextCol = pygame.Color(32, 255, 32)
+blueTextCol = pygame.Color(64, 64, 255)
+boundingBoxCol = pygame.Color(200, 200, 32)
+mousePosCol = pygame.Color(200, 200, 200)
 
 topBarSizeY = 26
 leftBarSize = 8*25
 
-controlsSectionOffsetY = 74
+controlsSectionOffsetY = 94
 
 topTextPadding = 4
 leftTextPadding = 4
@@ -45,6 +47,7 @@ class UpdateMode(Enum):
 
 cells = [[[0 for col in range(numCellsX)]for row in range(numCellsY)] for x in range(2)]
 
+numberOfGenerations = 0
 numberOfMemoryAccesses = 0
 
 currentBuffer = 0
@@ -68,7 +71,6 @@ done = False
 
 # -------------------- INITIALIZATION / OBJECT CREATION --------------------
 
-pygame.init()
 pygame.display.set_caption('Game of Life')
 clock = pygame.time.Clock()
 screen = pygame.display.set_mode((sizeX, sizeY))
@@ -83,11 +85,12 @@ controlsHeadingText = font.render("Controls", True, textCol, bgCol)
 runningText = font.render("RUNNING", True, greenTextCol, bgCol)
 stepText = font.render("STEP", True, greenTextCol, bgCol)
 pausedText = font.render("PAUSED", True, yellowTextCol, bgCol)
-updateTimeLabelText = smallFont.render("Update time:", True, textCol, bgCol)
-updateFPSLabelText =  smallFont.render("Update FPS:", True, textCol, bgCol)
+numberOfGenerationsLabelText = smallFont.render("# of generations:", True, textCol, bgCol)
+timePerGenerationLabelText = smallFont.render("Time/generation:", True, textCol, bgCol)
+generationsPerSecondLabelText = smallFont.render("Generations/second:", True, textCol, bgCol)
 updateTimeUnitText = smallFont.render("ms", True, textCol, bgCol)
-updateFPSUnitText =  smallFont.render("fps", True, textCol, bgCol)
-memAccessStringText =  smallFont.render("# of mem. accesses:", True, textCol, bgCol)
+updateFPSUnitText = smallFont.render("g/s", True, textCol, bgCol)
+memAccessStringText = smallFont.render("# of mem. accesses:", True, textCol, bgCol)
 
 controlsStrings = [ "[Enter] = Step",
 					"[Space] = Run/Pause", 
@@ -150,6 +153,10 @@ def initBoardRandom():
 
 # Clear all cells (from both buffers) function
 def clearCells():
+
+	global numberOfGenerations
+	numberOfGenerations = 0
+	
 	for row in range(numCellsY-1, -1, -1):
 		for col in range(numCellsX-1, -1, -1):
 			for i in range (0, 2):
@@ -184,15 +191,15 @@ def processCell(col, row, idle):
 	maxY = clamp((row+1), 0, (numCellsY-1))
 	
 	neighborCount = 0
+	thisCellIsAlive = cells[otherBuffer][row][col]
 	
 	for currY in range(minY, maxY+1):
 		for currX in range(minX, maxX+1):
 			#print("Reading cell at col: %d, row: %d, buff: %d" % (col, row, otherBuffer))
 			neighborCount += cells[otherBuffer][currY][currX]
 			numberOfMemoryAccesses += 1
-	
+
 	neighborCount -= cells[otherBuffer][row][col]
-	thisCellIsAlive = cells[otherBuffer][row][col]
 	
 	#if thisCellIsAlive:
 		#pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(minX*sizeCellsX, topBarSizeY + minY*sizeCellsY, (maxX - minX + 1) * sizeCellsX, (maxY - minY + 1) * sizeCellsY), 1)
@@ -244,6 +251,10 @@ def calculateBoundingBox():
 def updateBoard():
 
 	global numberOfMemoryAccesses
+	global numberOfGenerations
+	
+	if not paused or step:
+		numberOfGenerations += 1
 
 	if currentMode == UpdateMode.SIMPLE:
 		# Loop over all cells, updating (if not paused or if stepping)
@@ -328,6 +339,7 @@ while not done:
 				paused = True
 				step = True
 			if event.key == pygame.K_c:
+				paused = True
 				clearCells()
 			if event.key == pygame.K_g:
 				initBoardGliders()
@@ -420,24 +432,33 @@ while not done:
 	# Draw status heading text
 	screen.blit(statusHeadingText, (leftTextPadding, topTextPadding))
 	
-	# Draw current frame time text
+	# Draw number of generations text
+	numberOfGenerationsValueText = smallFont.render(str(numberOfGenerations), True, textCol, bgCol)
+	screen.blit(numberOfGenerationsLabelText, (leftTextPadding, topBarSizeY + topTextPadding))
+	screen.blit(numberOfGenerationsValueText, (leftBarSize - numberOfGenerationsValueText.get_width() - leftTextPadding, topBarSizeY + topTextPadding))	
+	
+	# Set generation timing color
 	timeTextCol = redTextCol
 	updateFPS = (1000 // updateTime)
 	if updateFPS >= 10:	timeTextCol = yellowTextCol
 	if updateFPS >= 20:	timeTextCol = greenTextCol
-	updateTimeValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
-	updateFPSValueText = smallFont.render(str(updateFPS), True, timeTextCol, bgCol)
-	screen.blit(updateTimeLabelText, (leftTextPadding, topBarSizeY + topTextPadding))
-	screen.blit(updateFPSLabelText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
-	screen.blit(updateTimeUnitText, (leftBarSize - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding))
-	screen.blit(updateFPSUnitText, (leftBarSize - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
-	screen.blit(updateTimeValueText, (leftBarSize - updateTimeValueText.get_width() - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding))
-	screen.blit(updateFPSValueText, (leftBarSize - updateFPSValueText.get_width() - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	
+	# Draw time per generation text
+	timePerGenerationValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
+	screen.blit(timePerGenerationLabelText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	screen.blit(updateTimeUnitText, (leftBarSize - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	screen.blit(timePerGenerationValueText, (leftBarSize - timePerGenerationValueText.get_width() - updateTimeUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight))
+	
+	# Draw generations per second text
+	generationsPerSecondValueText = smallFont.render(str(updateFPS), True, timeTextCol, bgCol)
+	screen.blit(generationsPerSecondLabelText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
+	screen.blit(updateFPSUnitText, (leftBarSize - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
+	screen.blit(generationsPerSecondValueText, (leftBarSize - generationsPerSecondValueText.get_width() - updateFPSUnitText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
 	
 	# Draw current number of memory accesses text
 	memAccessValueText = smallFont.render(str(numberOfMemoryAccesses), True, blueTextCol, bgCol)
-	screen.blit(memAccessStringText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
-	screen.blit(memAccessValueText, (leftBarSize - memAccessValueText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*2))
+	screen.blit(memAccessStringText, (leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*3))
+	screen.blit(memAccessValueText, (leftBarSize - memAccessValueText.get_width() - leftTextPadding, topBarSizeY + topTextPadding + smallFontHeight*3))
 	
 	# -------------------- CONTROLS TEXTS --------------------
 	
