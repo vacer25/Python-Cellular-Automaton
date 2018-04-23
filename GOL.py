@@ -110,7 +110,8 @@ controlsStrings = [ "[Enter] = Step",
 					"[S]     = Toggle separation",
 					"[P]     = Toggle prev state",
 					"[C]     = Clear all",
-					"[G]     = Glider pattern",
+					"[G]     = Gosper glider gun",
+					"[g]     = Glider pattern",
 					"[R]     = Random pattern",
 					"[ESC]   = Quit"]
 
@@ -143,26 +144,72 @@ def createGlider(col, row, ori):
 			cells[i][row+2][col+1] = 1
 			cells[i][row+2][col+2] = 1	
 		
-
+def initBoardGosperGliderGun(col, row):
+	
+	global cells
+	
+	clearCells()
+	
+	for i in range (0, 2):
+		cells[i][row+5][col+1] = 1
+		cells[i][row+5][col+2] = 1
+		cells[i][row+6][col+1] = 1
+		cells[i][row+6][col+2] = 1
+		cells[i][row+5][col+11] = 1
+		cells[i][row+6][col+11] = 1
+		cells[i][row+7][col+11] = 1
+		cells[i][row+4][col+12] = 1
+		cells[i][row+3][col+13] = 1
+		cells[i][row+3][col+14] = 1
+		cells[i][row+8][col+12] = 1
+		cells[i][row+9][col+13] = 1
+		cells[i][row+9][col+14] = 1
+		cells[i][row+6][col+15] = 1
+		cells[i][row+4][col+16] = 1
+		cells[i][row+5][col+17] = 1
+		cells[i][row+6][col+17] = 1
+		cells[i][row+7][col+17] = 1
+		cells[i][row+6][col+18] = 1
+		cells[i][row+8][col+16] = 1
+		cells[i][row+3][col+21] = 1
+		cells[i][row+4][col+21] = 1
+		cells[i][row+5][col+21] = 1
+		cells[i][row+3][col+22] = 1
+		cells[i][row+4][col+22] = 1
+		cells[i][row+5][col+22] = 1
+		cells[i][row+2][col+23] = 1
+		cells[i][row+6][col+23] = 1
+		cells[i][row+1][col+25] = 1
+		cells[i][row+2][col+25] = 1
+		cells[i][row+6][col+25] = 1
+		cells[i][row+7][col+25] = 1
+		cells[i][row+3][col+35] = 1
+		cells[i][row+4][col+35] = 1
+		cells[i][row+3][col+36] = 1
+		cells[i][row+4][col+36] = 1
+		
+		cells[i][row+27][col+41] = 1
+		cells[i][row+27][col+42] = 1
+		cells[i][row+28][col+41] = 1
+		cells[i][row+28][col+43] = 1
+		cells[i][row+29][col+43] = 1
+		cells[i][row+30][col+43] = 1
+		cells[i][row+30][col+44] = 1
+	
 # Initialize board (with 2 gliders) function
 def initBoardGliders():
-
-	global currentBuffer
 	
 	clearCells()
 	createGlider(1, 1, 0)
 	createGlider((40 - 4), 2, 1)
-	currentBuffer = 0
 
 	
 # Initialize board (randomly) function
 def initBoardRandom():
 
 	global cells
-	global currentBuffer
 
 	clearCells()
-	currentBuffer = 0
 	
 	for row in range(numCellsY-1, -1, -1):
 		for col in range(numCellsX-1, -1, -1):
@@ -177,7 +224,9 @@ def clearCells():
 	global numberOfGenerations
 	global needToPopulateLiveCellList
 	global isFullyStillLife
+	global currentBuffer
 	
+	currentBuffer = 0
 	numberOfGenerations = 0
 	needToPopulateLiveCellList = True
 	isFullyStillLife = False
@@ -243,15 +292,15 @@ def processCell(col, row, idle):
 			if thisCellIsAlive and neighborCount < 2:
 				cells[currentBuffer][row][col] = 0
 				didChangeCellValue = True
-				print("A cell was changed!")
+				#print("A cell was changed!")
 			elif thisCellIsAlive and neighborCount > 3:
 				cells[currentBuffer][row][col] = 0
 				didChangeCellValue = True
-				print("A cell was changed!")
+				#print("A cell was changed!")
 			elif not thisCellIsAlive and neighborCount == 3:
 				cells[currentBuffer][row][col] = 1
 				didChangeCellValue = True
-				print("A cell was changed!")
+				#print("A cell was changed!")
 			else:
 				cells[currentBuffer][row][col] = cells[otherBuffer][row][col]
 		
@@ -379,11 +428,6 @@ def updateBoard():
 				else:
 					processCell(col, row, True)
 				numberOfMemoryAccesses += 1
-		
-		# Loop over all cells, drawing each one
-		for row in range(numCellsY-1, -1, -1):
-			for col in range(numCellsX-1, -1, -1):
-				drawCell(col, row)
 				
 	elif currentMode == UpdateMode.BOUNDING:
 		# Loop over all cells within bounding box, updating (if not paused or if stepping)
@@ -394,18 +438,10 @@ def updateBoard():
 				else:
 					processCell(col, row, True)
 				numberOfMemoryAccesses += 1
-		
-		# Loop over all cells, drawing each one
-		for row in range(numCellsY-1, -1, -1):
-			for col in range(numCellsX-1, -1, -1):
-				drawCell(col, row)
 				
 		if not isFullyStillLife:
 			calculateBoundingBox()
 		
-		# Draw the bounding box
-		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(leftBarSize + boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
-	
 	elif currentMode == UpdateMode.ACTIVE:
 		if needToPopulateLiveCellList:
 			print("Populating live cell list...")
@@ -434,7 +470,6 @@ def updateBoard():
 		# Loop over all cells, drawing each one
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
-				drawCell(col, row)
 				cellIsProcessed[row][col] = False
 				numberOfMemoryAccesses += 1
 				
@@ -443,6 +478,18 @@ def updateBoard():
 	isFullyStillLife = not didChangeCellValue
 	#print("[Update] Set isFullyStillLife to: " + str(isFullyStillLife))
 
+	
+def displayBoard():
+
+	# Loop over all cells, drawing each one
+	for row in range(numCellsY-1, -1, -1):
+		for col in range(numCellsX-1, -1, -1):
+			drawCell(col, row)
+	
+	if currentMode == UpdateMode.BOUNDING:
+		# Draw the bounding box
+		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(leftBarSize + boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
+		
 	
 def processMouseInput():
 
@@ -475,10 +522,13 @@ def processMouseInput():
 # -------------------- INITIALIZE BOARD --------------------
 	
 # Initialize the board to be empty
-clearCells()
+#clearCells()
 	
 # Initialize the board with 2 gliders facing each other
 #initBoardGliders()
+
+# Initialize the board with a Gosper glider gun in the top left corner
+initBoardGosperGliderGun(0, 0)
 
 # Initialize the board randomly
 #initBoardRandom()
@@ -512,7 +562,10 @@ while not done:
 				paused = True
 				clearCells()
 			if event.key == K_g:
-				initBoardGliders()
+				if pygame.key.get_pressed()[K_LSHIFT] or pygame.key.get_pressed()[K_RSHIFT]:
+					initBoardGosperGliderGun(0, 0)
+				else:
+					initBoardGliders()
 			if event.key == K_r:
 				initBoardRandom()
 			if event.key == K_s:
@@ -565,6 +618,9 @@ while not done:
 	
 	# Update the board using the method based on the current mode
 	updateBoard()
+	
+	# Draw the cells 
+	displayBoard()
 	
 	# Stop Timing
 	updateTime = pygame.time.get_ticks() - startUpdateTime
