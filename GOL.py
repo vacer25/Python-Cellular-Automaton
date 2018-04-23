@@ -3,6 +3,7 @@
 import pygame
 import random
 from enum import Enum
+from pygame.locals import *
 
 pygame.init()
 
@@ -45,11 +46,15 @@ class UpdateMode(Enum):
      BOUNDING = 2
      ACTIVE = 3
 
-cells = [[[0 for col in range(numCellsX)]for row in range(numCellsY)] for x in range(2)]
+cells = [[[0 for col in range(numCellsX)]for row in range(numCellsY)] for i in range(2)]
+liveCells = [[(-1, -1) for pos in range(numCellsX*numCellsY)] for i in range(2)]
+cellIsProcessed = [[False for col in range(numCellsX)]for row in range(numCellsY)]
 
+numberOfNeighbors = 0
 numberOfGenerations = 0
 numberOfMemoryAccesses = 0
 
+currentLiveCellIndex = 0
 currentBuffer = 0
 otherBuffer = 1 - currentBuffer
 currentMode = UpdateMode.SIMPLE
@@ -63,16 +68,20 @@ mousePos = (-1, -1)
 mouseLeftClicked = False
 mouseRightClicked = False
 
+didChangeCellValue = False
+isFullyStillLife = False
 displayPrevIteration = True
 separateCells = True
+needToPopulateLiveCellList = True
 step = False
 paused = True
 done = False
 
 # -------------------- INITIALIZATION / OBJECT CREATION --------------------
 
-pygame.display.set_caption('Game of Life')
 clock = pygame.time.Clock()
+pygame.event.set_allowed([QUIT, KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION])
+pygame.display.set_caption('Game of Life')
 screen = pygame.display.set_mode((sizeX, sizeY))
 
 font = pygame.font.SysFont("consolas", 20)
@@ -116,6 +125,9 @@ def clamp(n, minn, maxn):
 	
 # Create glider (on both buffers) function
 def createGlider(col, row, ori):
+
+	global cells
+	
 	for i in range (0, 2):
 		if ori == 0: # Facing left
 			cells[i][row+0][col+1] = 1
@@ -134,6 +146,9 @@ def createGlider(col, row, ori):
 
 # Initialize board (with 2 gliders) function
 def initBoardGliders():
+
+	global currentBuffer
+	
 	clearCells()
 	createGlider(1, 1, 0)
 	createGlider((40 - 4), 2, 1)
@@ -142,6 +157,10 @@ def initBoardGliders():
 	
 # Initialize board (randomly) function
 def initBoardRandom():
+
+	global cells
+	global currentBuffer
+
 	clearCells()
 	currentBuffer = 0
 	
@@ -154,8 +173,15 @@ def initBoardRandom():
 # Clear all cells (from both buffers) function
 def clearCells():
 
+	global cells
 	global numberOfGenerations
+	global needToPopulateLiveCellList
+	global isFullyStillLife
+	
 	numberOfGenerations = 0
+	needToPopulateLiveCellList = True
+	isFullyStillLife = False
+	#print("[Clear] Set isFullyStillLife to: " + str(isFullyStillLife))
 	
 	for row in range(numCellsY-1, -1, -1):
 		for col in range(numCellsX-1, -1, -1):
@@ -182,39 +208,58 @@ def drawCell(col, row):
 
 # Process drawing function
 def processCell(col, row, idle):
-	
+
+	global cells
+	global liveCells
 	global numberOfMemoryAccesses
+	global currentLiveCellIndex 
+	global didChangeCellValue		
 	
-	minX = clamp((col-1), 0, (numCellsX-1))
-	maxX = clamp((col+1), 0, (numCellsX-1))
-	minY = clamp((row-1), 0, (numCellsY-1))
-	maxY = clamp((row+1), 0, (numCellsY-1))
+	if not isFullyStillLife:
 	
-	neighborCount = 0
-	thisCellIsAlive = cells[otherBuffer][row][col]
-	
-	for currY in range(minY, maxY+1):
-		for currX in range(minX, maxX+1):
-			#print("Reading cell at col: %d, row: %d, buff: %d" % (col, row, otherBuffer))
-			neighborCount += cells[otherBuffer][currY][currX]
-			numberOfMemoryAccesses += 1
-
-	neighborCount -= cells[otherBuffer][row][col]
-	
-	#if thisCellIsAlive:
-		#pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(minX*sizeCellsX, topBarSizeY + minY*sizeCellsY, (maxX - minX + 1) * sizeCellsX, (maxY - minY + 1) * sizeCellsY), 1)
-		#pygame.display.flip()
+		minX = clamp((col-1), 0, (numCellsX-1))
+		maxX = clamp((col+1), 0, (numCellsX-1))
+		minY = clamp((row-1), 0, (numCellsY-1))
+		maxY = clamp((row+1), 0, (numCellsY-1))
 		
-	if not idle:
-		if thisCellIsAlive and neighborCount < 2:
-			cells[currentBuffer][row][col] = 0
-		elif thisCellIsAlive and neighborCount > 3:
-			cells[currentBuffer][row][col] = 0
-		elif not thisCellIsAlive and neighborCount == 3:
-			cells[currentBuffer][row][col] = 1
-		else:
-			cells[currentBuffer][row][col] = cells[otherBuffer][row][col]
-
+		neighborCount = 0
+		thisCellIsAlive = cells[otherBuffer][row][col]
+		numberOfMemoryAccesses += 1
+		
+		for currY in range(minY, maxY+1):
+			for currX in range(minX, maxX+1):
+				#print("Reading cell at col: %d, row: %d, buff: %d" % (col, row, otherBuffer))
+				neighborCount += cells[otherBuffer][currY][currX]
+				numberOfMemoryAccesses += 1
+	
+		neighborCount -= cells[otherBuffer][row][col]
+		numberOfMemoryAccesses += 1
+		
+		#if thisCellIsAlive:
+			#pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(minX*sizeCellsX, topBarSizeY + minY*sizeCellsY, (maxX - minX + 1) * sizeCellsX, (maxY - minY + 1) * sizeCellsY), 1)
+			#pygame.display.flip()
+			
+		if not idle:
+			if thisCellIsAlive and neighborCount < 2:
+				cells[currentBuffer][row][col] = 0
+				didChangeCellValue = True
+				print("A cell was changed!")
+			elif thisCellIsAlive and neighborCount > 3:
+				cells[currentBuffer][row][col] = 0
+				didChangeCellValue = True
+				print("A cell was changed!")
+			elif not thisCellIsAlive and neighborCount == 3:
+				cells[currentBuffer][row][col] = 1
+				didChangeCellValue = True
+				print("A cell was changed!")
+			else:
+				cells[currentBuffer][row][col] = cells[otherBuffer][row][col]
+		
+		if currentMode == UpdateMode.ACTIVE and cells[currentBuffer][row][col]:
+			liveCells[currentBuffer][currentLiveCellIndex] = (col, row)
+			currentLiveCellIndex += 1
+			numberOfMemoryAccesses += 2
+	
 
 # Calculate bounding box (based on prev. alive cells) function
 def calculateBoundingBox():
@@ -247,11 +292,80 @@ def calculateBoundingBox():
 	#print("Calculated bounding box: (%d, %d, %d, %d)" % (boundingBoxMinX, boundingBoxMinY, boundingBoxMaxX, boundingBoxMaxY))
 	
 
+# Populate the live cell list function
+def populateLiveCellList():
+
+	global liveCells
+	global numberOfMemoryAccesses
+
+	pos = 0
+	for row in range(numCellsY-1, -1, -1):
+		for col in range(numCellsX-1, -1, -1):
+			if cells[currentBuffer][row][col]:
+				for i in range (0, 2):
+					liveCells[i][pos] = (col, row)
+				pos += 1
+			numberOfMemoryAccesses += 3
+	
+	for i in range (0, 2):
+		liveCells[i][pos] = (-1, -1)
+
+	print("Found %d live cells" % (pos))
+	for currentLiveIndex in range(0, numCellsX*numCellsY):
+			currentLiveX = (liveCells[currentBuffer][currentLiveIndex])[0]
+			currentLiveY = (liveCells[currentBuffer][currentLiveIndex])[1]
+			if currentLiveX != -1 and currentLiveY != -1:
+				print("%d, %d" % (currentLiveX, currentLiveY))
+			else:
+				break
+
+# Process the neighbors of the current live cell (ignoring duplicates) function
+def processLiveCellNeighbors(col, row):
+
+	global cellIsProcessed
+	global numberOfMemoryAccesses
+	global numberOfNeighbors
+	
+	minX = clamp((col-1), 0, (numCellsX-1))
+	maxX = clamp((col+1), 0, (numCellsX-1))
+	minY = clamp((row-1), 0, (numCellsY-1))
+	maxY = clamp((row+1), 0, (numCellsY-1))
+	
+	#print("Will process all neighbor cells within : ((%d, %d), (%d, %d))" % (minX, minY, maxX, maxY))
+	
+	for currY in range(minY, maxY+1):
+		for currX in range(minX, maxX+1):
+			if not cellIsProcessed[currY][currX]:
+				
+				pygame.draw.rect(screen, blueTextCol, pygame.Rect(leftBarSize + currX*sizeCellsX, topBarSizeY + currY*sizeCellsY, sizeCellsX, sizeCellsY), 1)
+				#pygame.display.flip()			# Update the screen
+				#pygame.time.wait(5)
+				
+				numberOfNeighbors += 1
+				
+				if not paused or step:
+					processCell(currX, currY, False)
+				else:
+					processCell(currX, currY, True)
+				cellIsProcessed[currY][currX] = True
+				numberOfMemoryAccesses += 1
+			numberOfMemoryAccesses += 1
+			
 # Update board function
 def updateBoard():
-
+	
+	global cells
+	global liveCells
+	global cellIsProcessed
 	global numberOfMemoryAccesses
 	global numberOfGenerations
+	global needToPopulateLiveCellList
+	global currentLiveCellIndex
+	global numberOfNeighbors
+	global didChangeCellValue
+	global isFullyStillLife
+	
+	didChangeCellValue = False
 	
 	if not paused or step:
 		numberOfGenerations += 1
@@ -285,39 +399,92 @@ def updateBoard():
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
 				drawCell(col, row)
-		calculateBoundingBox()
-		
-		#print("Bounding box: (%d, %d, %d, %d)" % (boundingBoxMinX, boundingBoxMinY, boundingBoxMaxX, boundingBoxMaxY))
+				
+		if not isFullyStillLife:
+			calculateBoundingBox()
 		
 		# Draw the bounding box
 		pygame.draw.rect(screen, boundingBoxCol, pygame.Rect(leftBarSize + boundingBoxMinX*sizeCellsX, topBarSizeY + boundingBoxMinY*sizeCellsY, (boundingBoxMaxX - boundingBoxMinX + 1) * sizeCellsX, (boundingBoxMaxY - boundingBoxMinY + 1) * sizeCellsY), 1)
 	
+	elif currentMode == UpdateMode.ACTIVE:
+		if needToPopulateLiveCellList:
+			print("Populating live cell list...")
+			populateLiveCellList()
+			needToPopulateLiveCellList = False
+		
+		currentLiveCellIndex = 0
+		numberOfNeighbors = 0
+		numberOfLiveCells = 0
+		
+		# Process the neighbors around each live cell
+		for currentLiveIndex in range(0, numCellsX*numCellsY):
+			currentLiveX = (liveCells[otherBuffer][currentLiveIndex])[0]
+			currentLiveY = (liveCells[otherBuffer][currentLiveIndex])[1]
+			if currentLiveX != -1 and currentLiveY != -1:
+				processLiveCellNeighbors(currentLiveX, currentLiveY)
+				pygame.draw.rect(screen, redTextCol, pygame.Rect(leftBarSize + currentLiveX*sizeCellsX, topBarSizeY + currentLiveY*sizeCellsY, sizeCellsX, sizeCellsY), 1)
+				numberOfLiveCells += 1
+			else:
+				break
+		
+		liveCells[otherBuffer][currentLiveCellIndex] = (-1, -1)
+		
+		#print("Live cells: %d, Neighbors: %d" % (numberOfLiveCells, numberOfNeighbors))
 
-def processMouseInput():
-	# Loop over all cells, drawing each one
+		# Loop over all cells, drawing each one
 		for row in range(numCellsY-1, -1, -1):
 			for col in range(numCellsX-1, -1, -1):
-			
-				cellBorderRect = pygame.Rect(leftBarSize + col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY)
-				if cellBorderRect.collidepoint(mousePos):
-					pygame.draw.rect(screen, mousePosCol, cellBorderRect, 1)
-					
-					if mouseLeftClicked:
-						for i in range (0, 2):
-							cells[i][row][col] = 1
-							
-					if mouseRightClicked:
-						for i in range (0, 2):
-							cells[i][row][col] = 0
+				drawCell(col, row)
+				cellIsProcessed[row][col] = False
+				numberOfMemoryAccesses += 1
+				
+		#print(liveCells)
+		
+	isFullyStillLife = not didChangeCellValue
+	#print("[Update] Set isFullyStillLife to: " + str(isFullyStillLife))
 
-							
+	
+def processMouseInput():
+
+	global needToPopulateLiveCellList
+	global isFullyStillLife
+
+	# Loop over all cells, drawing each one
+	for row in range(numCellsY-1, -1, -1):
+		for col in range(numCellsX-1, -1, -1):
+		
+			cellBorderRect = pygame.Rect(leftBarSize + col*sizeCellsX, topBarSizeY + row*sizeCellsY, sizeCellsX, sizeCellsY)
+			if cellBorderRect.collidepoint(mousePos):
+				pygame.draw.rect(screen, mousePosCol, cellBorderRect, 1)
+				
+				if mouseLeftClicked:
+					for i in range (0, 2):
+						cells[i][row][col] = 1
+					needToPopulateLiveCellList = True
+					isFullyStillLife = False
+					#print("[Mouse] Set isFullyStillLife to: " + str(isFullyStillLife))
+						
+				if mouseRightClicked:
+					for i in range (0, 2):
+						cells[i][row][col] = 0
+					needToPopulateLiveCellList = True
+					isFullyStillLife = False
+					#print("[Mouse] Set isFullyStillLife to: " + str(isFullyStillLife))
+
+
 # -------------------- INITIALIZE BOARD --------------------
-							
+	
+# Initialize the board to be empty
+clearCells()
+	
 # Initialize the board with 2 gliders facing each other
-initBoardGliders()
+#initBoardGliders()
 
 # Initialize the board randomly
 #initBoardRandom()
+
+#populateLiveCellList()
+#print(liveCells)
 
 # -------------------- MAIN LOOP --------------------
 
@@ -327,54 +494,58 @@ while not done:
 
 	for event in pygame.event.get():
 		# Check to exit
-		if event.type == pygame.QUIT:
+		if event.type == QUIT:
 			done = True
 		# Check keyboard input
-		if event.type == pygame.KEYDOWN:
-			if event.key == pygame.K_ESCAPE:
+		if event.type == KEYDOWN:
+			if event.key == K_ESCAPE:
 				done = True
-			if event.key == pygame.K_SPACE:
+			if event.key == K_SPACE:
 				paused = not paused
-			if event.key == pygame.K_RETURN:
+				isFullyStillLife = False
+				#print("[Main] Set isFullyStillLife to: " + str(isFullyStillLife))
+			if event.key == K_RETURN:
+				isFullyStillLife = False
 				paused = True
 				step = True
-			if event.key == pygame.K_c:
+			if event.key == K_c:
 				paused = True
 				clearCells()
-			if event.key == pygame.K_g:
+			if event.key == K_g:
 				initBoardGliders()
-			if event.key == pygame.K_r:
+			if event.key == K_r:
 				initBoardRandom()
-			if event.key == pygame.K_s:
+			if event.key == K_s:
 				separateCells = not separateCells
-			if event.key == pygame.K_p:
+			if event.key == K_p:
 				displayPrevIteration = not displayPrevIteration
-			if event.key == pygame.K_m:
+			if event.key == K_m:
 				if currentMode == UpdateMode.SIMPLE: 
 					currentMode = UpdateMode.BOUNDING
 					calculateBoundingBox()
 				elif currentMode == UpdateMode.BOUNDING:
-					currentMode = UpdateMode.SIMPLE
-				# Active Cell mode is not implemented yet...
-				#elif currentMode == UpdateMode.ACTIVE: currentMode = UpdateMode.SIMPLE
+					currentMode = UpdateMode.ACTIVE
+				elif currentMode == UpdateMode.ACTIVE: currentMode = UpdateMode.SIMPLE
 		# Check mouse down input
-		if event.type == pygame.MOUSEBUTTONDOWN:
+		if event.type == MOUSEBUTTONDOWN:
 			if event.button == 1: # Left button down
 				paused = True
 				mouseLeftClicked = True
 			if event.button == 2: # Mouse wheel button down
 				paused = not paused
+				isFullyStillLife = False
+				#print("[Main] Set isFullyStillLife to: " + str(isFullyStillLife))
 			elif event.button == 3: # Right button down
 				paused = True
 				mouseRightClicked = True
 		# Check for mouse up input
-		if event.type == pygame.MOUSEBUTTONUP:
+		if event.type == MOUSEBUTTONUP:
 			if event.button == 1: # Left button up
 				mouseLeftClicked = False
 			elif event.button == 3: # Right button up
 				mouseRightClicked = False    
 		# Get the mouse position	
-		if event.type == pygame.MOUSEMOTION:
+		if event.type == MOUSEMOTION:
 			mousePos = event.pos
 	
 	# -------------------- UPDATE FRAME --------------------
@@ -439,9 +610,13 @@ while not done:
 	
 	# Set generation timing color
 	timeTextCol = redTextCol
-	updateFPS = (1000 // updateTime)
-	if updateFPS >= 10:	timeTextCol = yellowTextCol
-	if updateFPS >= 20:	timeTextCol = greenTextCol
+	if updateTime < 1:
+		updateFPS = 999
+		timeTextCol = greenTextCol
+	else:
+		updateFPS = (1000 // updateTime)
+		if updateFPS >= 10:	timeTextCol = yellowTextCol
+		if updateFPS >= 20:	timeTextCol = greenTextCol
 	
 	# Draw time per generation text
 	timePerGenerationValueText = smallFont.render(str(updateTime), True, timeTextCol, bgCol)
@@ -476,6 +651,8 @@ while not done:
 	
 	pygame.display.flip()			# Update the screen
 	#clock.tick(targetFrameRate)	# Don't pause, update screen as fast as possible
+	#if currentMode == UpdateMode.ACTIVE:
+	#	clock.tick(0.2)
 	
 	# -------------------- RESET VARIABLES --------------------
 	
